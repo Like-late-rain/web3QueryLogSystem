@@ -1,0 +1,214 @@
+/* === 全局 Web3 极致高级暗黑风 === */
+body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 30% 0%, #2a2340, #0a0a12 70%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #e9e6ff;
+  overflow-x: hidden;
+}
+
+/* 页面容器动画 */
+.page-container {
+  animation: fadeIn 0.8s ease-out;
+  height: 100vh;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 顶部导航栏 */
+.navbar {
+  padding: 22px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(10px);
+}
+
+.nav-title {
+  font-size: 24px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #d4b8ff, #9d7cff);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* 玻璃拟态卡片（升级质感） */
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 26px;
+  border-radius: 18px;
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  margin-top: 26px;
+  animation: fadeSlideUp 0.6s ease-out;
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 标题升级 */
+h2 {
+  color: #d9c3ff;
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+/* ========== 输入框 (Neon Flow) ========== */
+input {
+  width: 330px;
+  padding: 12px 15px;
+  border-radius: 12px;
+  border: 1px solid #8b5dff;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e5d9ff;
+  outline: none;
+  font-size: 15px;
+  transition: 0.25s;
+  position: relative;
+}
+
+input:focus {
+  border-color: #b98aff;
+  box-shadow: 0 0 18px #8b5dff;
+}
+
+/* ========== 按钮流光动效 ========== */
+button {
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #8b5dff, #5833ff);
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+
+button:hover {
+  box-shadow: 0 0 16px #8b5dff;
+  transform: translateY(-2px);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 流光动画 */
+button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent);
+  transform: skewX(-20deg);
+}
+
+button:hover::before {
+  animation: shine 0.75s ease-out;
+}
+
+@keyframes shine {
+  from { left: -80%; }
+  to { left: 130%; }
+}
+
+/* 数据卡片（Blockchain Event Card） */
+.log-card {
+  background: rgba(255, 255, 255, 0.07);
+  padding: 18px;
+  border-radius: 14px;
+  margin-top: 14px;
+  border-left: 4px solid #8b5dff;
+  transition: 0.25s;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+.log-card:hover {
+  transform: translateX(6px);
+  background: rgba(255,255,255,0.12);
+}
+
+.connect-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: #ffffff;
+  color: #111;
+  font-weight: 600;
+  min-width: 300px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.connect-button:hover {
+  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.connect-balance {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  color: #242424;
+}
+
+.balance-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.balance-value {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.balance-symbol {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.connect-account {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #111;
+}
+
+.account-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffdce9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.account-text {
+  font-size: 0.95rem;
+}
+
+.account-caret {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  align-self: center;
+}
