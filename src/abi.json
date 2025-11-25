@@ -1,20 +1,48 @@
 [
   {
-    "anonymous": false,
     "inputs": [
-      { "indexed": true, "internalType": "address", "name": "shender", "type": "address" },
-      { "indexed": false, "internalType": "string", "name": "data", "type": "string" }
+      { "internalType": "uint256", "name": "_totalAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "_numEnvelopes", "type": "uint256" }
     ],
-    "name": "DataLogged",
-    "type": "event"
+    "name": "createRedEnvelopes",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "claimRedEnvelope",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [
-      { "internalType": "string", "name": "data", "type": "string" }
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
     ],
-    "name": "logData",
-    "outputs": [],
-    "stateMutability": "nonpayable",
+    "name": "getUserStatus",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getStatus",
+    "outputs": [
+      { "internalType": "uint256", "name": "totalAmount", "type": "uint256" },
+      { "internalType": "uint256", "name": "envelopesLeft", "type": "uint256" }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

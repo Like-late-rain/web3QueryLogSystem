@@ -7,13 +7,12 @@ import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { sepolia } from "wagmi/chains";
-console.log("🚀 ~ sepolia:", sepolia);
+import { sepolia, mainnet, polygon, optimism } from "wagmi/chains";
 
 const config = getDefaultConfig({
   appName: "dongfangyuechu",
   projectId: import.meta.env.VITE_PROJECT_ID,
-  chains: [sepolia]
+  chains: [sepolia, mainnet, polygon, optimism]
 });
 
 const queryClient = new QueryClient();
