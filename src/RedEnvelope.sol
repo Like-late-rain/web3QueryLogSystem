@@ -7,8 +7,10 @@ contract RedEnvelope {
     uint256 public totalAmount; // 红包总金额
     uint256 public numEnvelopes; // 红包个数
     uint256 public remainingEnvelopes; // 剩余红包数量
+    uint256 private currentRound; // 当前红包轮次
 
-    mapping(address => bool) public claimed; // 记录每个用户地址是否已经抢过红包
+    // 记录某个地址最后成功领取的轮次
+    mapping(address => uint256) public lastClaimRound;
     event RedEnvelopeClaimed(address claimer, uint256 amount); // 抢红包时触发的事件
 
     // 创建红包函数
@@ -21,6 +23,7 @@ contract RedEnvelope {
         totalAmount = _totalAmount; // 设置红包总金额
         numEnvelopes = _numEnvelopes; // 设置红包个数
         remainingEnvelopes = _numEnvelopes; // 设置剩余红包个数，初始都是和总个数一样。
+        currentRound++; // 只有在新一轮红包创建时才递增轮次
     }
 
     // 抢红包函数
@@ -28,8 +31,8 @@ contract RedEnvelope {
         // 判断是否还有剩余红包
         require(remainingEnvelopes > 0, "A slow hand counts.");
 
-        // 判断用户是否已经抢过红包了
-        require(!claimed[msg.sender], "Greedy little rascal");
+        // 判断当前地址是否在本轮已经领取过
+        require(lastClaimRound[msg.sender] < currentRound, "Greedy little rascal");
 
         uint256 randomAmount;
         if (remainingEnvelopes == 1) {
@@ -55,7 +58,7 @@ contract RedEnvelope {
         }
 
         // 标记当前用户已经抢过红包了
-        claimed[msg.sender] = true;
+        lastClaimRound[msg.sender] = currentRound;
 
         // 向抢红包的用户转钱
         payable(msg.sender).transfer(randomAmount);
@@ -76,9 +79,9 @@ contract RedEnvelope {
         return (remainingEnvelopes, totalAmount);
     }
 
-    // 查询当前用户是否已经抢过红包
+    // 查询当前用户在当前轮次是否已领过红包
     function getUserStatus(address user) public view returns (bool) {
-        return claimed[user];
+        return lastClaimRound[user] == currentRound;
     }
 
     // 接收ETH的函数

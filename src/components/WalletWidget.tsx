@@ -7,6 +7,7 @@ interface WalletWidgetProps {
   ensName: string | null | undefined;
   address: string | undefined;
   isConnected: boolean;
+  ensAvatar: string | null | undefined;
 }
 
 export default function WalletWidget({
@@ -14,7 +15,8 @@ export default function WalletWidget({
   symbol,
   ensName,
   address,
-  isConnected
+  isConnected,
+  ensAvatar
 }: WalletWidgetProps) {
   return (
     <ConnectButton.Custom>
@@ -29,7 +31,11 @@ export default function WalletWidget({
                 {isConnected ? "已连接" : "离线"}
               </p>
             </div>
-            <span className={`avatar-glow ${account ? "active" : ""}`} />
+            <span className={`avatar-glow ${account ? "active" : ""}`}>
+              {ensAvatar && (
+                <img src={ensAvatar} alt="" className="ens-avatar" />
+              )}
+            </span>
           </div>
           <div className="wallet-card-body">
             {ensName && (

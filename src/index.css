@@ -135,8 +135,8 @@ body {
 }
 
 .avatar-glow {
-  width: 46px;
-  height: 46px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: radial-gradient(circle, rgba(255, 255, 255, 0.25), transparent 70%);
@@ -146,6 +146,13 @@ body {
 .avatar-glow.active {
   opacity: 1;
   animation: pulse 2.5s infinite;
+}
+
+.ens-avatar{
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 @keyframes pulse {
@@ -235,6 +242,32 @@ body {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.toast-wrapper {
+  position: fixed;
+  top: 28px;
+  right: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 10;
+}
+
+.toast-message {
+  min-width: 240px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: rgba(15, 16, 32, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+  font-weight: 500;
+  color: #f9f8ff;
+}
+
+.toast-success {
+  border-color: rgba(61, 241, 172, 0.7);
+  background: linear-gradient(135deg, rgba(21, 39, 63, 0.8), rgba(25, 60, 102, 0.6));
 }
 
 .panel {

@@ -4,48 +4,38 @@ import { gql, request } from "graphql-request";
 import {
   useAccount,
   useBalance,
+  useEnsAvatar,
   useEnsName,
+  usePublicClient,
   useReadContract,
   useWalletClient,
   useWatchContractEvent
 } from "wagmi";
 import type { Address, Log } from "viem";
-import { formatEther, parseEther } from "viem";
+import { formatEther } from "viem";
 import ParticlesGalaxy from "./components/ParticlesGalaxy";
 import WalletWidget from "./components/WalletWidget";
 import StatusPanel from "./components/StatusPanel";
 import RedEnvelopeActions from "./components/RedEnvelopeActions";
+import TransferPanel from "./components/TransferPanel";
+import LogPanel from "./components/LogPanel";
 import logAbi from "./dataLoggerAbi.json";
 import abi from "./abi.json";
 import "./index.css";
 
-const getRequiredEnv = (value: string | undefined, name: string) => {
-  if (!value) {
-    throw new Error(`Missing environment variable: ${name}`);
-  }
-  return value;
-};
-
-const GRAPH_URL = getRequiredEnv(
-  import.meta.env.VITE_GRAPH_URL,
-  "VITE_GRAPH_URL"
-);
-
-const DATA_LOGGER_ADDRESS = getRequiredEnv(
-  import.meta.env.VITE_CONTRACT_ADDRESS,
-  "VITE_CONTRACT_ADDRESS"
-) as Address;
-
-const RED_ENVELOPE_ADDRESS: Address = import.meta.env
-  .VITE_FALLBACK_ADDRESS as Address;
-
-type TxStatus = "idle" | "pending" | "success" | "error";
-const txLabelMap: Record<TxStatus, string> = {
-  idle: "空闲",
-  pending: "进行中",
-  success: "成功",
-  error: "失败"
-};
+import {
+  GRAPH_URL,
+  DATA_LOGGER_ADDRESS,
+  RED_ENVELOPE_ADDRESS,
+  txLabelMap,
+  type TxStatus
+} from "./utils/constants";
+import {
+  decodeRedEnvelopeClaimedLog,
+  formatNumberDisplay,
+  safeParseEther
+} from "./utils/web3Helpers";
+import ToastMessage from "./components/ToastMessage";
 
 type RedEnvelopeClaimLog = Log & {
   args?: {
@@ -54,32 +44,34 @@ type RedEnvelopeClaimLog = Log & {
   };
 };
 
-const safeParseEther = (value?: string) => {
-  if (!value) return undefined;
-  try {
-    return parseEther(value);
-  } catch {
-    return undefined;
-  }
-};
-
 export default function App() {
   const { address, chain, isConnected } = useAccount();
   const { data: balanceData } = useBalance({ address });
   const { data: ensName } = useEnsName({ address });
+  // 头像只有在解析到 ENS 名称后才会尝试请求，避免无效调用
+  const { data: ensAvatar } = useEnsAvatar({ name: ensName ?? undefined });
   const { data: walletClient } = useWalletClient();
-  const [totalAmountInput, setTotalAmountInput] = useState("0.08");
-  const [envelopeCountInput, setEnvelopeCountInput] = useState("5");
+  const publicClient = usePublicClient();
+  // 红包金额/数量表单
+  const [totalAmountInput, setTotalAmountInput] = useState("0.0002");
+  const [envelopeCountInput, setEnvelopeCountInput] = useState("2");
+  const [toastMessage, setToastMessage] = useState<{
+    text: string;
+    type: "success" | "info";
+  } | null>(null);
+  // 状态相关的时间戳与交易状态
   const [lastStatusRefresh, setLastStatusRefresh] = useState<Date | null>(null);
   const [createStatus, setCreateStatus] = useState<TxStatus>("idle");
   const [claimStatus, setClaimStatus] = useState<TxStatus>("idle");
+  // 错误提示/最近领取记录
   const [createError, setCreateError] = useState<string | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [latestClaim, setLatestClaim] = useState<{
     amount: bigint;
     timestamp: number;
   } | null>(null);
-  const [sendAmountInput, setSendAmountInput] = useState("0.002");
+  // 转账表单状态
+  const [sendAmountInput, setSendAmountInput] = useState("0.0002");
   const [recipientInput, setRecipientInput] = useState("");
   const [sendNote, setSendNote] = useState("");
   const [sendStatus, setSendStatus] = useState<TxStatus>("idle");
@@ -88,22 +80,6 @@ export default function App() {
     { id: string; shender: string; data: string }[]
   >([]);
   const [isFetchingLogs, setIsFetchingLogs] = useState(false);
-
-  const formattedBalance = balanceData?.value
-    ? formatNumberDisplay(formatEther(balanceData.value))
-    : "--";
-  const symbol = balanceData?.symbol ?? "ETH";
-  const networkName = chain?.name ?? "Sepolia";
-
-  const safeAmount = safeParseEther(totalAmountInput);
-  const envelopeCountNumber = Number(envelopeCountInput);
-  const envelopeCountBigInt =
-    Number.isFinite(envelopeCountNumber) && envelopeCountNumber > 0
-      ? BigInt(Math.floor(envelopeCountNumber))
-      : undefined;
-
-  const sendAmount = safeParseEther(sendAmountInput);
-
   const {
     data: statusData,
     refetch: refreshStatus,
@@ -129,6 +105,40 @@ export default function App() {
       : undefined
   );
 
+  // 提取钱包余额/符号/网络名用于展示
+  const formattedBalance = balanceData?.value
+    ? formatNumberDisplay(formatEther(balanceData.value))
+    : "--";
+  const symbol = balanceData?.symbol ?? "ETH";
+  const networkName = chain?.name ?? "Sepolia";
+
+  // 解析输入值和红包数量
+  const safeAmount = safeParseEther(totalAmountInput);
+  const envelopeCountNumber = Number(envelopeCountInput);
+  // 红包数量必须为正整数，转换为 BigInt 以便合约调用
+  const envelopeCountBigInt =
+    Number.isFinite(envelopeCountNumber) && envelopeCountNumber > 0
+      ? BigInt(Math.floor(envelopeCountNumber))
+      : undefined;
+
+  // 转账金额解析
+  const sendAmount = safeParseEther(sendAmountInput);
+
+  // 合约返回的状态元组：[剩余红包数，总锁定金额]
+  const statusTuple = statusData as readonly [bigint, bigint] | undefined;
+  const envelopesLeft = statusTuple?.[0];
+  const totalLocked = statusTuple?.[1];
+
+  const totalLockedDisplay = totalLocked ? formatEther(totalLocked) : "--";
+  const envelopesLeftDisplay = envelopesLeft ? envelopesLeft.toString() : "--";
+  const hasAvailableEnvelopes = Boolean(envelopesLeft && envelopesLeft > 0n);
+  const hasActiveRedEnvelope = hasAvailableEnvelopes;
+  const userHasClaimed = Boolean(userStatusData);
+  const latestClaimDisplay = latestClaim
+    ? formatEther(latestClaim.amount)
+    : null;
+
+  // 查询日志
   const fetchLogs = useCallback(async () => {
     setIsFetchingLogs(true);
     const query = gql`
@@ -143,7 +153,6 @@ export default function App() {
 
     try {
       const response = await request(GRAPH_URL, query);
-      console.log("🚀 ~ App ~ response:", response);
       setLogs(response.dataLoggeds ?? []);
     } catch (error) {
       console.error(error);
@@ -168,11 +177,19 @@ export default function App() {
     fetchLogs();
   }, [fetchLogs]);
 
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 4200);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
+
+  // 监听红包领取事件，更新最近领取记录
   useWatchContractEvent({
     address: RED_ENVELOPE_ADDRESS,
     abi,
+    chainId: chain?.id,
     eventName: "RedEnvelopeClaimed",
-    enabled: Boolean(address),
+    enabled: Boolean(address && chain?.id),
     onLogs(logs) {
       for (const log of logs) {
         const claimLog = log as RedEnvelopeClaimLog;
@@ -190,19 +207,7 @@ export default function App() {
     }
   });
 
-  const statusTuple = statusData as readonly [bigint, bigint] | undefined;
-  const envelopesLeft = statusTuple?.[0];
-  const totalLocked = statusTuple?.[1];
-
-  const totalLockedDisplay = totalLocked ? formatEther(totalLocked) : "--";
-  const envelopesLeftDisplay = envelopesLeft ? envelopesLeft.toString() : "--";
-  const hasAvailableEnvelopes = Boolean(envelopesLeft && envelopesLeft > 0n);
-  const hasActiveRedEnvelope = hasAvailableEnvelopes;
-  const userHasClaimed = Boolean(userStatusData);
-  const latestClaimDisplay = latestClaim
-    ? formatEther(latestClaim.amount)
-    : null;
-
+  // 创建红包
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isConnected) {
@@ -238,6 +243,7 @@ export default function App() {
     }
   };
 
+  // 抢红包
   const handleClaim = async () => {
     if (!isConnected) {
       alert("连接钱包后才能抢红包");
@@ -252,14 +258,37 @@ export default function App() {
     setClaimStatus("pending");
 
     try {
-      await walletClient.writeContract({
+      const hash = await walletClient.writeContract({
         address: RED_ENVELOPE_ADDRESS,
         abi,
         functionName: "claimRedEnvelope"
       });
+      if (!publicClient) {
+        setClaimStatus("error");
+        setClaimError("Public client 未就绪，无法查询回执");
+        return;
+      }
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
       setClaimStatus("success");
       refreshStatus();
       refreshUserStatus();
+      const normalizedAddress = address?.toLowerCase();
+      const claimedArgs = receipt.logs
+        .map(decodeRedEnvelopeClaimedLog)
+        .find((decoded) => {
+          if (!decoded?.claimer || !normalizedAddress) return false;
+          return decoded.claimer.toLowerCase() === normalizedAddress;
+        });
+      if (claimedArgs?.amount) {
+        setLatestClaim({
+          amount: claimedArgs.amount,
+          timestamp: Date.now()
+        });
+        setToastMessage({
+          text: `恭喜你抢到 ${formatEther(claimedArgs.amount)} ETH`,
+          type: "success"
+        });
+      }
     } catch (error) {
       console.error(error);
       setClaimStatus("error");
@@ -267,6 +296,7 @@ export default function App() {
     }
   };
 
+  // 转账
   const handleSendEther = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!isConnected) {
@@ -323,8 +353,17 @@ export default function App() {
     !hasAvailableEnvelopes ||
     userHasClaimed;
 
+  const isTransferDisabled =
+    !walletClient || !sendAmount || sendStatus === "pending";
+  const sendStatusLabel = txLabelMap[sendStatus];
+
   return (
     <div className="page-container">
+      {toastMessage && (
+        <div className="toast-wrapper">
+          <ToastMessage message={toastMessage.text} type={toastMessage.type} />
+        </div>
+      )}
       <ParticlesGalaxy />
       <div className="app-shell">
         <header className="hero">
@@ -346,6 +385,7 @@ export default function App() {
               ensName={ensName}
               address={address}
               isConnected={isConnected}
+              ensAvatar={ensAvatar}
             />
           </div>
         </header>
@@ -379,82 +419,27 @@ export default function App() {
         </main>
 
         <section className="secondary-grid">
-          <div className="panel send-panel sendEther">
-            <p className="panel-eyebrow">转账</p>
-            <h2>转账并写入备注</h2>
-            <form className="send-form" onSubmit={handleSendEther}>
-              <label className="input-label">收款地址</label>
-              <input
-                className="input-field"
-                value={recipientInput}
-                onChange={(event) => setRecipientInput(event.target.value)}
-                placeholder="0x..."
-              />
-              <label className="input-label">转账金额 (ETH)</label>
-              <input
-                className="input-field"
-                value={sendAmountInput}
-                onChange={(event) => setSendAmountInput(event.target.value)}
-                placeholder="例如 0.001"
-              />
-              <label className="input-label">备注内容</label>
-              <textarea
-                className="input-field"
-                value={sendNote}
-                onChange={(event) => setSendNote(event.target.value)}
-                rows={3}
-                placeholder="链上备注"
-              />
-              <button
-                type="submit"
-                className="primary-btn"
-                disabled={
-                  !walletClient || !sendAmount || sendStatus === "pending"
-                }
-              >
-                {sendStatus === "pending" ? "转账中..." : "发送转账"}
-              </button>
-              {sendError && <p className="error-text">{sendError}</p>}
-              <p className="status-label">状态：{txLabelMap[sendStatus]}</p>
-            </form>
-          </div>
+          <TransferPanel
+            recipient={recipientInput}
+            amount={sendAmountInput}
+            note={sendNote}
+            onRecipientChange={setRecipientInput}
+            onAmountChange={setSendAmountInput}
+            onNoteChange={setSendNote}
+            onSubmit={handleSendEther}
+            isSubmitting={sendStatus === "pending"}
+            isDisabled={isTransferDisabled}
+            error={sendError}
+            statusLabel={sendStatusLabel}
+          />
 
-          <div className="panel log-panel log">
-            <p className="panel-eyebrow">链上日志</p>
-            <h2>TheGraph 数据</h2>
-            <button
-              type="button"
-              className="ghost-btn sm"
-              onClick={fetchLogs}
-              disabled={isFetchingLogs}
-            >
-              {isFetchingLogs ? "刷新中..." : "刷新日志"}
-            </button>
-            <div className="log-list">
-              {logs.length === 0 && (
-                <p className="hint-text">暂无数据，等待转账记录</p>
-              )}
-              {logs.map((entry) => (
-                <div className="log-item" key={entry.id}>
-                  <p className="log-title">{entry.shender}</p>
-                  <p className="log-value">{entry.data}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <LogPanel
+            logs={logs}
+            isFetching={isFetchingLogs}
+            onRefresh={fetchLogs}
+          />
         </section>
       </div>
     </div>
   );
-}
-
-// 格式化数字显示，添加千分位分隔符，保留最多四位小数
-function formatNumberDisplay(value?: string | number) {
-  if (value === undefined || value === null) return "--";
-  const parsed = Number(value);
-  if (Number.isNaN(parsed)) return String(value);
-  return parsed.toLocaleString("en-US", {
-    maximumFractionDigits: 4,
-    minimumFractionDigits: 0
-  });
 }

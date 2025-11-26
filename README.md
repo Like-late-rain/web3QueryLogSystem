@@ -40,6 +40,22 @@
 - `src/index.css`：全局视觉风格（暗黑背景、玻璃卡、定制按钮），按钮样式也在此处定义；
 - `README.md`：当前文档，描述项目，方便复用或迁移。
 
+## 更新部署后的 ID/地址
+
+每次重新部署合约或 subgraph 后，需要同步更新环境变量和配置：
+
+- `VITE_REDPACKET_ADDRESS`（可选）：当前红包合约地址，App 的 `getStatus`/`createRedEnvelopes`/`claimRedEnvelope` 会读这个值。  
+- `VITE_CONTRACT_ADDRESS`：`sendEther` 绑定的 `ReadTheLog` 合约地址，决定备注/日志数据写入哪条链上合约。  
+- `VITE_GRAPH_URL`：The Graph Studio 里 “Endpoints” 标签下的 `QUERY URL`，一般是 `https://api.studio.thegraph.com/query/{user_id}/{subgraph_slug}/version/latest`。部署新的 subgraph 要重新复制这个地址。  
+- `VITE_PROJECT_ID`：RainbowKit/WalletConnect 在 Reown Dashboard 生成的 Project ID，用于 `main.tsx` 中 `getDefaultConfig({ projectId })`，如果切换到新的 WalletConnect 项目需要替换。  
+- `.env` 修改后需重启 `npm run dev`，让 Vite 重新加载新值。
+
+另外，每次更换合约部署地址还要：
+
+1. 更新 `dongfangyuechu/subgraph.yaml` 中的 `source.address`（或增加多个 `dataSources`），然后在 Studio 上重新 deploy、publish 最新版本；
+2. 确保 subgraph 中的 ABI/handler 和新事件（`DataLogged`）匹配，否则 Graph 不会抓到备注；
+3. Optionally，更新 front-end 里 `dataLoggerAbi.json`/`abi.json` 以符合新的合约。
+
 ## 开发提示
 
 - 余额显示依赖 `formatEther` 和 `balance.value`，会在用户切换链/账户时自动更新；
